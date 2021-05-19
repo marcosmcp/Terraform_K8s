@@ -1,0 +1,79 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: desafio
+  labels:
+    k8s-app: desafio
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      k8s-app: desafio
+  template:
+    metadata:
+      labels:
+        k8s-app: desafio
+        name: desafio
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+      - image: marcosluv/desafio:v0
+        name: desafio
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          requests:
+            cpu: "256m"
+            memory: "512m"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: desafio
+spec:
+  selector:
+    k8s-app: desafio
+  ports:
+    - protocol: TCP
+      port: 80
+      name: web
+  type: ClusterIP
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: desafio
+          servicePort: 80
+
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: desafio
+spec:
+  maxReplicas: 5
+  minReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 30
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: desafio
